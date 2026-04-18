@@ -1,20 +1,18 @@
 #![no_main]
-#[macro_use]
-extern crate libfuzzer_sys;
-extern crate rusty_secrets;
-extern crate arbitrary;
 
+use libfuzzer_sys::{
+    arbitrary::{Arbitrary, Unstructured},
+    fuzz_target,
+};
 use rusty_secrets::dss::ss1::*;
-use arbitrary::{RingBuffer, Unstructured};
 
 fuzz_target!(|data: &[u8]| {
     // ---
-    if let Ok(mut buffer) = RingBuffer::new(data, data.len()) {
-        let mut kn = vec![0; 2];
-        buffer.fill_buffer(&mut kn).unwrap();
-
-        let k = kn[0];
-        let n = kn[1];
+    let mut unstructured = Unstructured::new(data);
+    if let (Ok(k), Ok(n)) = (
+        u8::arbitrary(&mut unstructured),
+        u8::arbitrary(&mut unstructured),
+    ) {
 
         split_secret(k, n, &data, Reproducibility::reproducible(), &None)
             .and_then(|ss| recover_secret(&ss))

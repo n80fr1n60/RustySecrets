@@ -3,18 +3,18 @@
 name = "rusty_secrets-fuzz"
 version = "0.0.1"
 authors = ["Automatically generated"]
+edition = "2021"
 publish = false
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
-arbitrary = "0.1.0"
+libfuzzer-sys = "0.4.12"
 
 [dependencies.rusty_secrets]
 path = ".."
-[dependencies.libfuzzer-sys]
-git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+features = ["dss"]
 
 # Prevent this from interfering with workspaces
 [workspace]
