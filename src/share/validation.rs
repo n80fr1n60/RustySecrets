@@ -15,7 +15,7 @@ pub(crate) fn validate_signed_shares<S: IsSignedShare>(
     let result = validate_shares(shares)?;
 
     if verify_signatures {
-        S::verify_signatures(&shares)?;
+        S::verify_signatures(shares)?;
     }
 
     Ok(result)
@@ -46,7 +46,7 @@ pub(crate) fn validate_shares<S: IsShare>(shares: &Vec<S>) -> Result<(u8, usize)
             return Err(Error::ShareParsingErrorEmptyShare(id));
         }
 
-        if ids.iter().any(|&x| x == id) {
+        if ids.contains(&id) {
             return Err(Error::DuplicateShareId(id));
         }
 

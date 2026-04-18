@@ -31,7 +31,7 @@ impl Gf256 {
         Gf256 { poly: b }
     }
     #[inline]
-    pub fn to_byte(&self) -> u8 {
+    pub fn to_byte(self) -> u8 {
         self.poly
     }
     pub fn exp(power: u8) -> Gf256 {
@@ -52,20 +52,21 @@ impl Gf256 {
 
         while exp > 1 {
             if (exp & 1) == 1 {
-                acc = acc * base;
+                acc *= base;
             }
             exp /= 2;
-            base = base * base;
+            base *= base;
         }
 
         if exp == 1 {
-            acc = acc * base;
+            acc *= base;
         }
 
         acc
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl Add<Gf256> for Gf256 {
     type Output = Gf256;
     #[inline]
@@ -81,6 +82,7 @@ impl AddAssign<Gf256> for Gf256 {
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl Sub<Gf256> for Gf256 {
     type Output = Gf256;
     #[inline]

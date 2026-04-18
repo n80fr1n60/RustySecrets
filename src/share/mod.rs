@@ -20,6 +20,7 @@ pub(crate) trait IsShare: Sized {
     fn get_threshold(&self) -> u8;
 
     /// Returns the total number of shares that have been dealt
+    #[allow(dead_code)]
     fn get_shares_count(&self) -> Option<u8>;
 }
 
@@ -32,6 +33,7 @@ pub(crate) trait IsSignedShare: IsShare {
     fn is_signed(&self) -> bool;
 
     /// Return the signature itself.
+    #[allow(dead_code)]
     fn get_signature(&self) -> &Self::Signature;
 
     /// Verify the signatures of the given batch of shares.

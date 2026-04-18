@@ -31,7 +31,7 @@ impl WrappedSecrets {
 
         let data = rusty_secret.write_to_bytes().unwrap();
 
-        SSS::default().split_secret(rng, k, n, data.as_slice(), sign_shares)
+        SSS.split_secret(rng, k, n, data.as_slice(), sign_shares)
     }
 
     /// Recovers the secret from a k-out-of-n Shamir's secret sharing.

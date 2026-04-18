@@ -124,7 +124,7 @@ impl ThSS {
             .collect();
 
         let access_structure = AccessStructure {
-            threshold: threshold,
+            threshold,
             shares_count: shares.first().unwrap().shares_count,
         };
 

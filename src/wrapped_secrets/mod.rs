@@ -44,7 +44,7 @@ pub fn split_secret(
     mime_type: Option<String>,
     sign_shares: bool,
 ) -> Result<Vec<String>> {
-    WrappedSecrets::default()
+    WrappedSecrets
         .split_secret(&mut rand::rng(), k, n, secret, mime_type, sign_shares)
         .map(|shares| shares.into_iter().map(Share::into_string).collect())
 }
@@ -90,7 +90,7 @@ pub fn split_secret_rng<R: Rng>(
     mime_type: Option<String>,
     sign_shares: bool,
 ) -> Result<Vec<String>> {
-    WrappedSecrets::default()
+    WrappedSecrets
         .split_secret(rng, k, n, secret, mime_type, sign_shares)
         .map(|shares| shares.into_iter().map(Share::into_string).collect())
 }

@@ -34,7 +34,7 @@ impl Share {
     /// Attempts to parse all the given strings into shares.
     /// Calls out to `Share::from_string`.
     pub(crate) fn parse_all(raws: &[String], is_signed: bool) -> Result<Vec<Share>> {
-        raws.into_iter()
+        raws.iter()
             .map(|raw| Self::from_string(raw, is_signed))
             .collect()
     }
