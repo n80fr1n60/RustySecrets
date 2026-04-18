@@ -38,8 +38,7 @@ static HASH_ALGO: &Algorithm = &SHA512;
 /// }
 /// ```
 pub fn split_secret(k: u8, n: u8, secret: &[u8], sign_shares: bool) -> Result<Vec<String>> {
-    SSS
-        .split_secret(&mut rand::rng(), k, n, secret, sign_shares)
+    SSS.split_secret(&mut rand::rng(), k, n, secret, sign_shares)
         .map(|shares| shares.into_iter().map(Share::into_string).collect())
 }
 
@@ -74,8 +73,7 @@ pub fn split_secret_rng<R: Rng>(
     secret: &[u8],
     sign_shares: bool,
 ) -> Result<Vec<String>> {
-    SSS
-        .split_secret(rng, k, n, secret, sign_shares)
+    SSS.split_secret(rng, k, n, secret, sign_shares)
         .map(|shares| shares.into_iter().map(Share::into_string).collect())
 }
 
