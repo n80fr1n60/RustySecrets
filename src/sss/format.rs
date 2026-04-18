@@ -71,9 +71,7 @@ pub(crate) fn share_from_string(s: &str, is_signed: bool) -> Result<Share> {
 
     let signature_pair = if is_signed {
         let p = Proof::parse_from_bytes(&protobuf_data.proof, HASH_ALGO)
-            .map_err(|e| {
-                Error::ShareParsingError(format!("Failed to parse proof protobuf: {e}"))
-            })?
+            .map_err(|e| Error::ShareParsingError(format!("Failed to parse proof protobuf: {e}")))?
             .ok_or_else(|| {
                 Error::ShareParsingError("Proof data is incomplete or empty".to_owned())
             })?;

@@ -57,13 +57,13 @@ fn farray(array: [u8; 256], f: &mut fmt::Formatter) -> fmt::Result {
 
 impl fmt::Display for Tables {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Tables {{\n")?;
+        writeln!(f, "Tables {{")?;
         write!(f, "    exp: [")?;
         farray(self.exp, f)?;
-        write!(f, "],\n")?;
+        writeln!(f, "],")?;
         write!(f, "    log: [")?;
         farray(self.log, f)?;
-        write!(f, "]\n")?;
+        writeln!(f, "]")?;
         write!(f, "}};")
     }
 }
@@ -161,9 +161,9 @@ fn main() {
     write!(
         mod_file,
         "#![allow(missing_docs, unused_qualifications)]\n\
-         pub mod version;\n\
-         pub mod wrapped;\n\
          #[cfg(feature = \"dss\")]\n\
-         pub mod dss;\n"
+         pub mod dss;\n\
+         pub mod version;\n\
+         pub mod wrapped;\n"
     );
 }
