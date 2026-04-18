@@ -12,34 +12,33 @@ description = "Implementation of threshold Shamir's secret sharing in the Rust p
 homepage = "https://github.com/freedomofpress/RustySecrets"
 license = "BSD-3-Clause"
 readme = "README.md"
+edition = "2021"
 build = "build.rs"
 
 exclude = ["Cargo.lock"]
 
-[badges]
-travis-ci = { repository = "SpinResearch/RustySecrets", branch = "master" }
-coveralls = { repository = "SpinResearch/RustySecrets", branch = "master", service = "github" }
-
 [features]
 default = []
-dss = []
+dss = ["rand_chacha"]
 
 [dependencies]
-base64 = "0.9.0"
-rand = "^0.4.2"
-ring = "^0.12"
-merkle_sigs = "^1.4"
-protobuf = ">= 1.4, < 1.6"
+base64 = "0.22"
+rand = "0.9"
+rand_chacha = { version = "0.9", optional = true }
+ring = "0.17"
+merkle_sigs = { path = "./merkle_sigs.rs" }
+protobuf = "3.7"
+thiserror = "2"
 
-[dependencies.error-chain]
-version = "0.11.0"
-default-features = false
+[build-dependencies]
+protobuf-codegen = "3.7"
 
 [dev-dependencies]
-itertools = "^0.7"
-quickcheck = "^0.4"
-flate2 = "^0.2"
-rand = "^0.4.2"
+itertools = "0.14"
+quickcheck = "1.1"
+flate2 = "1.1"
+rand = "0.9"
+rand_chacha = "0.9"
 
 [profile.bench]
 opt-level = 3

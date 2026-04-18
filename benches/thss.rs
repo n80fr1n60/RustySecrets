@@ -48,5 +48,4 @@ mod thss {
 
     bench_generate!(generate_1kb_10_25, 10, 25, secret_1kb);
     bench_recover!(recover_1kb_10_25, 10, 25, secret_1kb);
-
 }

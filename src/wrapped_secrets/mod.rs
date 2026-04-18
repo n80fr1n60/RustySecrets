@@ -1,9 +1,9 @@
 //! (Beta) `wrapped_secrets` provides Shamir's secret sharing with a wrapped secret. It currently offers versioning and MIME information about the data.
 
-use errors::*;
-use proto::wrapped::SecretProto;
+use crate::errors::*;
+use crate::proto::wrapped::secret::SecretProto;
 
-use rand::{OsRng, Rng};
+use rand::Rng;
 
 mod scheme;
 pub(crate) use self::scheme::*;
@@ -17,8 +17,8 @@ pub(crate) use self::scheme::*;
 /// ```
 /// use rusty_secrets::wrapped_secrets::split_secret;
 ///
-/// let secret = "These programs were never about terrorism: they’re about economic spying, \
-///               social control, and diplomatic manipulation. They’re about power.";
+/// let secret = "These programs were never about terrorism: they're about economic spying, \
+///               social control, and diplomatic manipulation. They're about power.";
 ///
 /// let result = split_secret(
 ///     7,
@@ -45,7 +45,7 @@ pub fn split_secret(
     sign_shares: bool,
 ) -> Result<Vec<String>> {
     WrappedSecrets::default()
-        .split_secret(&mut OsRng::new()?, k, n, secret, mime_type, sign_shares)
+        .split_secret(&mut rand::rng(), k, n, secret, mime_type, sign_shares)
         .map(|shares| shares.into_iter().map(Share::into_string).collect())
 }
 
@@ -54,18 +54,18 @@ pub fn split_secret(
 /// # Examples
 ///
 /// ```
-/// # extern crate rusty_secrets;
-/// # extern crate rand;
-/// #
-/// # fn main() {
 /// use rusty_secrets::wrapped_secrets::split_secret_rng;
-/// use rand::ChaChaRng;
+/// use rand::SeedableRng;
+/// use rand_chacha::ChaChaRng;
 ///
-/// let secret = "These programs were never about terrorism: they’re about economic spying, \
-///               social control, and diplomatic manipulation. They’re about power.";
+/// let rng_seed = [0u8; 32];
+/// let mut rng = ChaChaRng::from_seed(rng_seed);
+///
+/// let secret = "These programs were never about terrorism: they're about economic spying, \
+///               social control, and diplomatic manipulation. They're about power.";
 ///
 /// let result = split_secret_rng(
-///     &mut ChaChaRng::new_unseeded(),
+///     &mut rng,
 ///     7,
 ///     10,
 ///     &secret.as_bytes(),
@@ -81,7 +81,6 @@ pub fn split_secret(
 ///         // Deal with error
 ///     }
 /// }
-/// # }
 /// ```
 pub fn split_secret_rng<R: Rng>(
     rng: &mut R,

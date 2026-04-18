@@ -55,5 +55,4 @@ mod wrapped_secrets {
 
     bench_generate!(generate_1kb_10_25_signed, 10, 25, secret_1kb, true);
     bench_recover!(recover_1kb_10_25_signed, 10, 25, secret_1kb, true);
-
 }

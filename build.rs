@@ -47,9 +47,9 @@ fn generate_tables(mut file: &File) {
 
 fn farray(array: [u8; 256], f: &mut fmt::Formatter) -> fmt::Result {
     for (index, value) in array.into_iter().enumerate() {
-        try!(write!(f, "{}", value));
+        write!(f, "{}", value)?;
         if index != array.len() - 1 {
-            try!(write!(f, ","));
+            write!(f, ",")?;
         }
     }
     Ok(())
@@ -57,19 +57,20 @@ fn farray(array: [u8; 256], f: &mut fmt::Formatter) -> fmt::Result {
 
 impl fmt::Display for Tables {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "Tables {{\n"));
-        try!(write!(f, "    exp: ["));
-        try!(farray(self.exp, f));
-        try!(write!(f, "],\n"));
-        try!(write!(f, "    log: ["));
-        try!(farray(self.log, f));
-        try!(write!(f, "]\n"));
+        write!(f, "Tables {{\n")?;
+        write!(f, "    exp: [")?;
+        farray(self.exp, f)?;
+        write!(f, "],\n")?;
+        write!(f, "    log: [")?;
+        farray(self.log, f)?;
+        write!(f, "]\n")?;
         write!(f, "}};")
     }
 }
 
 #[allow(unused_must_use)]
 fn main() {
+    // Generate GF(256) lookup tables
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest = Path::new(&out_dir).join("nothinghardcoded.rs");
 
@@ -86,4 +87,83 @@ fn main() {
     );
 
     generate_tables(&f);
+
+    // Generate protobuf code — separate calls per package to avoid name collisions
+    let proto_base = Path::new("src/proto");
+
+    // version.proto (no package)
+    protobuf_codegen::Codegen::new()
+        .pure()
+        .out_dir(proto_base.to_str().unwrap())
+        .input("protobuf/version.proto")
+        .include("protobuf")
+        .run()
+        .expect("protobuf codegen (version) failed");
+
+    // wrapped package — also include version.proto since wrapped/secret.proto imports it
+    let wrapped_dir = proto_base.join("wrapped");
+    std::fs::create_dir_all(&wrapped_dir).unwrap();
+    protobuf_codegen::Codegen::new()
+        .pure()
+        .out_dir(wrapped_dir.to_str().unwrap())
+        .input("protobuf/wrapped/share.proto")
+        .input("protobuf/wrapped/secret.proto")
+        .include("protobuf")
+        .run()
+        .expect("protobuf codegen (wrapped) failed");
+
+    // Fix: wrapped/secret.rs references super::version, but version is at proto level.
+    // Add re-export in wrapped/mod.rs
+    {
+        let wrapped_mod = wrapped_dir.join("mod.rs");
+        let mut wf = File::create(&wrapped_mod).unwrap();
+        write!(
+            wf,
+            "#![allow(missing_docs)]\n\
+             pub mod secret;\n\
+             pub mod share;\n\
+             pub use crate::proto::version;\n"
+        );
+    }
+
+    // dss package
+    let dss_dir = proto_base.join("dss");
+    std::fs::create_dir_all(&dss_dir).unwrap();
+    protobuf_codegen::Codegen::new()
+        .pure()
+        .out_dir(dss_dir.to_str().unwrap())
+        .input("protobuf/dss/share.proto")
+        .input("protobuf/dss/metadata.proto")
+        .input("protobuf/dss/secret.proto")
+        .include("protobuf")
+        .run()
+        .expect("protobuf codegen (dss) failed");
+
+    // Fix: dss/secret.rs references super::version, but version is at proto level.
+    // Also re-export metadata for sibling access.
+    {
+        let dss_mod = dss_dir.join("mod.rs");
+        let mut df = File::create(&dss_mod).unwrap();
+        write!(
+            df,
+            "#![allow(missing_docs)]\n\
+             pub mod metadata;\n\
+             pub mod secret;\n\
+             pub mod share;\n\
+             pub use crate::proto::version;\n"
+        );
+    }
+
+    // Write hand-crafted mod.rs that codegen can't generate
+    // (codegen only knows about version.proto at the top level)
+    let mod_rs = proto_base.join("mod.rs");
+    let mut mod_file = File::create(&mod_rs).unwrap();
+    write!(
+        mod_file,
+        "#![allow(missing_docs, unused_qualifications)]\n\
+         pub mod version;\n\
+         pub mod wrapped;\n\
+         #[cfg(feature = \"dss\")]\n\
+         pub mod dss;\n"
+    );
 }

@@ -1,12 +1,11 @@
-use errors::*;
-use proto::VersionProto;
-use proto::wrapped::SecretProto;
-use protobuf;
+use crate::errors::*;
+use crate::proto::version::VersionProto;
+use crate::proto::wrapped::secret::SecretProto;
 use protobuf::Message;
 use rand::Rng;
 
-use sss::SSS;
-pub(crate) use sss::Share;
+pub(crate) use crate::sss::Share;
+use crate::sss::SSS;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct WrappedSecrets;
@@ -23,11 +22,11 @@ impl WrappedSecrets {
         sign_shares: bool,
     ) -> Result<Vec<Share>> {
         let mut rusty_secret = SecretProto::new();
-        rusty_secret.set_version(VersionProto::INITIAL_RELEASE);
-        rusty_secret.set_secret(secret.to_owned());
+        rusty_secret.version = protobuf::EnumOrUnknown::new(VersionProto::INITIAL_RELEASE);
+        rusty_secret.secret = secret.to_owned();
 
         if let Some(mt) = mime_type {
-            rusty_secret.set_mime_type(mt);
+            rusty_secret.mime_type = mt;
         }
 
         let data = rusty_secret.write_to_bytes().unwrap();
@@ -41,7 +40,7 @@ impl WrappedSecrets {
     pub fn recover_secret(shares: Vec<Share>, verify_signatures: bool) -> Result<SecretProto> {
         let secret = SSS::recover_secret(shares, verify_signatures)?;
 
-        protobuf::parse_from_bytes::<SecretProto>(secret.as_slice())
-            .chain_err(|| ErrorKind::SecretDeserializationError)
+        SecretProto::parse_from_bytes(secret.as_slice())
+            .map_err(|_| Error::SecretDeserializationError)
     }
 }

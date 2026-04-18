@@ -2,17 +2,17 @@
 
 use std::fmt;
 
-use ring::rand::{SecureRandom, SystemRandom};
+use crate::dss::random::{
+    random_bytes, random_bytes_count, RandomSource, SecureSystemRandom, MAX_MESSAGE_SIZE,
+};
+use crate::errors::*;
+use crate::gf256::Gf256;
+use crate::lagrange;
+use crate::share::validation::{validate_share_count, validate_shares};
 
-use dss::random::{random_bytes, random_bytes_count, MAX_MESSAGE_SIZE};
-use errors::*;
-use gf256::Gf256;
-use lagrange;
-use share::validation::{validate_share_count, validate_shares};
-
-use super::AccessStructure;
 use super::encode::encode_secret;
 use super::share::*;
+use super::AccessStructure;
 
 /// We bound the message size at about 16MB to avoid overflow in `random_bytes_count`.
 /// Moreover, given the current performances, it is almost unpractical to run
@@ -23,7 +23,7 @@ const MAX_SECRET_SIZE: usize = MAX_MESSAGE_SIZE;
 #[allow(missing_debug_implementations)]
 pub(crate) struct ThSS {
     /// The randomness source
-    random: Box<SecureRandom>,
+    random: Box<dyn RandomSource>,
 }
 
 impl fmt::Debug for ThSS {
@@ -34,13 +34,13 @@ impl fmt::Debug for ThSS {
 
 impl Default for ThSS {
     fn default() -> Self {
-        Self::new(Box::new(SystemRandom::new()))
+        Self::new(Box::new(SecureSystemRandom::new()))
     }
 }
 
 impl ThSS {
     /// Constructs a new sharing scheme
-    pub fn new(random: Box<SecureRandom>) -> Self {
+    pub fn new(random: Box<dyn RandomSource>) -> Self {
         Self { random }
     }
 
@@ -58,10 +58,10 @@ impl ThSS {
         let secret_len = secret.len();
 
         if secret_len == 0 {
-            bail!(ErrorKind::EmptySecret);
+            return Err(Error::EmptySecret);
         }
         if secret_len > MAX_SECRET_SIZE {
-            bail!(ErrorKind::SecretTooBig(secret_len, MAX_SECRET_SIZE));
+            return Err(Error::SecretTooBig(secret_len, MAX_SECRET_SIZE));
         }
 
         let rands_len = random_bytes_count(threshold, secret_len);
@@ -112,7 +112,7 @@ impl ThSS {
             for (u, share) in remaining_shares {
                 let value = poly.evaluate_at(Gf256::from_byte(u as u8 + 1)).to_byte();
                 if value != share.data[i] {
-                    bail!(ErrorKind::InconsistentShares);
+                    return Err(Error::InconsistentShares);
                 }
             }
         }

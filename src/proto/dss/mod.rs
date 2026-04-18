@@ -1,13 +1,5 @@
-#[allow(unused_qualifications, deprecated, missing_docs)]
-mod secret;
-pub use self::secret::SecretProto;
-
-#[allow(unused_qualifications, deprecated, missing_docs)]
-mod share;
-pub use self::share::ShareProto;
-
-#[allow(unused_qualifications, deprecated, missing_docs)]
-mod metadata;
-pub use self::metadata::MetaDataProto;
-
-use super::version;
+#![allow(missing_docs)]
+pub mod metadata;
+pub mod secret;
+pub mod share;
+pub use crate::proto::version;

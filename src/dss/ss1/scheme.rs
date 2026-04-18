@@ -1,18 +1,19 @@
 use std::collections::HashSet;
 
-use rand::{ChaChaRng, Rng, SeedableRng};
+use rand::{RngCore, SeedableRng};
+use rand_chacha::ChaChaRng;
 use ring::digest::{Context, SHA256};
-use ring::rand::{SecureRandom, SystemRandom};
-use ring::{hkdf, hmac};
+use ring::hkdf;
 
 use super::share::*;
-use dss::random::{random_bytes_count, FixedRandom, MAX_MESSAGE_SIZE};
-use dss::thss::{MetaData, ThSS};
-use dss::utils;
-use dss::{thss, AccessStructure};
-use errors::*;
-use share::validation::{validate_share_count, validate_shares};
-use vol_hash::VOLHash;
+use crate::dss::random::{
+    random_bytes_count, FixedRandom, RandomSource, SecureSystemRandom, MAX_MESSAGE_SIZE,
+};
+use crate::dss::thss::{MetaData, ThSS};
+use crate::dss::{thss, AccessStructure};
+use crate::errors::*;
+use crate::share::validation::{validate_share_count, validate_shares};
+use crate::vol_hash::VOLHash;
 
 /// We bound the message size at about 16MB to avoid overflow in `random_bytes_count`.
 /// Moreover, given the current performances, it is almost unpractical to run
@@ -114,10 +115,7 @@ impl SS1 {
     /// Constructs a new sharing scheme
     pub fn new(random_padding_len: usize, hash_len: usize) -> Result<Self> {
         if random_padding_len < MIN_RANDOM_PADDING_LEN || hash_len < MIN_HASH_LEN {
-            bail!(ErrorKind::InvalidSS1Parameters(
-                random_padding_len,
-                hash_len,
-            ));
+            return Err(Error::InvalidSS1Parameters(random_padding_len, hash_len));
         }
 
         Ok(Self {
@@ -141,10 +139,10 @@ impl SS1 {
         let secret_len = secret.len();
 
         if secret_len == 0 {
-            bail!(ErrorKind::EmptySecret);
+            return Err(Error::EmptySecret);
         }
         if secret_len > MAX_SECRET_SIZE {
-            bail!(ErrorKind::SecretTooBig(secret_len, MAX_SECRET_SIZE));
+            return Err(Error::SecretTooBig(secret_len, MAX_SECRET_SIZE));
         }
 
         let random_padding = self.generate_random_padding(reproducibility, secret, metadata)?;
@@ -190,22 +188,22 @@ impl SS1 {
     ) -> Result<Vec<u8>> {
         match reproducibility {
             Reproducibility::None => {
-                let rng = SystemRandom::new();
+                let rng = SecureSystemRandom::new();
                 let mut result = vec![0u8; self.random_padding_len];
                 rng.fill(&mut result)
-                    .chain_err(|| ErrorKind::CannotGenerateRandomNumbers)?;
+                    .map_err(|_| Error::CannotGenerateRandomNumbers)?;
                 Ok(result)
             }
             Reproducibility::Reproducible => {
                 let seed = self.generate_seed(DEFAULT_PRESEED, secret, metadata);
-                let mut rng = ChaChaRng::from_seed(&seed);
+                let mut rng = ChaChaRng::from_seed(seed);
                 let mut result = vec![0u8; self.random_padding_len];
                 rng.fill_bytes(result.as_mut_slice());
                 Ok(result)
             }
             Reproducibility::Seeded(preseed) => {
                 let seed = self.generate_seed(&preseed, secret, metadata);
-                let mut rng = ChaChaRng::from_seed(&seed);
+                let mut rng = ChaChaRng::from_seed(seed);
                 let mut result = vec![0u8; self.random_padding_len];
                 rng.fill_bytes(result.as_mut_slice());
                 Ok(result)
@@ -214,7 +212,7 @@ impl SS1 {
         }
     }
 
-    /// Generate a seed of 8 32-bits word for the ChaCha20 PRNG by hashing
+    /// Generate a 32-byte seed for the ChaCha20 PRNG by hashing
     /// together the preseed, secret, and metadata, in order to obtain a salt
     /// for performing HKDF over the preseed.
     fn generate_seed(
@@ -222,24 +220,21 @@ impl SS1 {
         preseed: &[u8],
         secret: &[u8],
         metadata: &Option<MetaData>,
-    ) -> Vec<u32> {
+    ) -> [u8; 32] {
         let mut ctx = Context::new(&SHA256);
         ctx.update(preseed);
         ctx.update(secret);
-        for md in metadata {
+        if let Some(md) = metadata {
             md.hash_into(&mut ctx);
         }
         let preseed_hash = ctx.finish();
 
-        let salt = hmac::SigningKey::new(&SHA256, &[]);
-        let mut seed_bytes = vec![0u8; 32];
-        hkdf::extract_and_expand(&salt, preseed_hash.as_ref(), &[], &mut seed_bytes);
-
-        // We can safely call `utils::slice_u8_to_slice_u32` because
-        // the `digest` produced with `SHA256` is 256 bits long, as is
-        // `seed_bytes`, and the latter can thus be represented both as a
-        // slice of 32 bytes or as a slice of 8 32-bit words.
-        utils::slice_u8_to_slice_u32(&seed_bytes).to_vec()
+        let salt = hkdf::Salt::new(hkdf::HKDF_SHA256, &[]);
+        let prk = salt.extract(preseed_hash.as_ref());
+        let okm = prk.expand(&[], hkdf::HKDF_SHA256).unwrap();
+        let mut seed_bytes = [0u8; 32];
+        okm.fill(&mut seed_bytes).unwrap();
+        seed_bytes
     }
 
     /// Recover the secret from the given set of shares
@@ -306,10 +301,7 @@ impl SS1 {
 
         for (share, test_share) in matching_shares {
             if share != test_share {
-                bail!(ErrorKind::MismatchingShares(
-                    share.clone(),
-                    test_share.clone(),
-                ));
+                return Err(Error::MismatchingShares(share.clone(), test_share.clone()));
             }
         }
 

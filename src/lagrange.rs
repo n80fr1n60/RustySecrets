@@ -1,5 +1,5 @@
-use gf256::Gf256;
-use poly::Poly;
+use crate::gf256::Gf256;
+use crate::poly::Poly;
 
 /// Evaluates an interpolated polynomial at `Gf256::zero()` where
 /// the polynomial is determined using barycentric Lagrange
@@ -27,7 +27,8 @@ fn barycentric_interpolate_at(k: usize, points: &[(u8, u8)]) -> u8 {
             let delta = x[j] - x[i];
             assert_ne!(delta.poly, 0, "Duplicate shares");
             w[j] /= delta;
-            w[i] -= w[j];
+            let wj = w[j];
+            w[i] -= wj;
         }
     }
 
@@ -73,7 +74,8 @@ pub(crate) fn interpolate(points: &[(Gf256, Gf256)]) -> Poly {
             }
         }
 
-        poly = poly.iter()
+        poly = poly
+            .iter()
             .zip(coeffs.iter())
             .map(|(&old_coeff, &add)| old_coeff + add / prod)
             .collect();
@@ -87,19 +89,18 @@ pub(crate) fn interpolate(points: &[(Gf256, Gf256)]) -> Poly {
 mod tests {
 
     use super::*;
-    use gf256::*;
+    use crate::gf256::*;
     use quickcheck::*;
-    use std;
 
     quickcheck! {
 
         fn interpolate_evaluate_at_works(ys: Vec<Gf256>) -> TestResult {
-            if ys.is_empty() || ys.len() > std::u8::MAX as usize {
+            if ys.is_empty() || ys.len() > u8::MAX as usize {
                 return TestResult::discard();
             }
 
             let points = ys.into_iter()
-                           .zip(1..std::u8::MAX)
+                           .zip(1..u8::MAX)
                            .map(|(y, x)| (gf256!(x), y))
                            .collect::<Vec<_>>();
             let poly = interpolate(&points);
@@ -137,5 +138,4 @@ mod tests {
         }
 
     }
-
 }

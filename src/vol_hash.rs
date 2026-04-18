@@ -1,11 +1,7 @@
-use std;
-use std::mem::transmute;
-
 use ring::digest::{Algorithm, Context};
 
-#[allow(unsafe_code)]
 fn u32_to_bytes(x: u32) -> [u8; 4] {
-    unsafe { transmute(x.to_be()) }
+    x.to_be_bytes()
 }
 
 pub struct VOLHash {
@@ -27,7 +23,7 @@ impl VOLHash {
 
     pub fn finish(self, dest: &mut [u8]) {
         let len = dest.len();
-        assert!(len < std::u32::MAX as usize);
+        assert!(len < u32::MAX as usize);
 
         let mut ctx = Context::new(self.algorithm);
         ctx.update(&[0u8]);
@@ -36,7 +32,7 @@ impl VOLHash {
 
         let mut state = ctx.finish().as_ref().to_vec();
 
-        let iter_num = len / self.algorithm.output_len;
+        let iter_num = len / self.algorithm.output_len();
 
         for i in 0..iter_num {
             let mut inner_ctx = Context::new(self.algorithm);

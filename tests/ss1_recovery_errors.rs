@@ -17,7 +17,8 @@ fn get_test_hash() -> Vec<u8> {
         TEST_SECRET,
         TEST_REPRODUCIBILITY,
         &None,
-    ).unwrap();
+    )
+    .unwrap();
 
     good_shares[0].hash.clone()
 }

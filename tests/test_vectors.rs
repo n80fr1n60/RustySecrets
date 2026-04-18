@@ -1,22 +1,17 @@
-extern crate base64;
-extern crate protobuf;
-extern crate rusty_secrets;
-
+use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use protobuf::Message;
 
-use rusty_secrets::proto::wrapped::ShareProto;
+use rusty_secrets::proto::wrapped::share::ShareProto;
 use rusty_secrets::sss::recover_secret;
-
-const BASE64_CONFIG: base64::Config = base64::STANDARD_NO_PAD;
 
 pub fn wrap_from_sellibitze(share: &str) -> String {
     let parts: Vec<_> = share.trim().split('-').collect();
-    let share_data = base64::decode_config(parts[2], BASE64_CONFIG).unwrap();
+    let share_data = STANDARD_NO_PAD.decode(parts[2]).unwrap();
 
     let mut share_protobuf = ShareProto::new();
-    share_protobuf.set_shamir_data(share_data);
+    share_protobuf.shamir_data = share_data;
 
-    let b64_share = base64::encode_config(&share_protobuf.write_to_bytes().unwrap(), BASE64_CONFIG);
+    let b64_share = STANDARD_NO_PAD.encode(&share_protobuf.write_to_bytes().unwrap());
 
     format!("{}-{}-{}", parts[0], parts[1], b64_share)
 }

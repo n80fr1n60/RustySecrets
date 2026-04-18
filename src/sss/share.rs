@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet};
-use std::error::Error;
 
 use merkle_sigs::verify_data_vec_signature;
 use merkle_sigs::{MerklePublicKey, Proof};
 
-use errors::*;
-use share::{IsShare, IsSignedShare};
-use sss::format::{format_share_for_signing, share_from_string, share_to_string};
+use crate::errors::*;
+use crate::share::{IsShare, IsSignedShare};
+use crate::sss::format::{format_share_for_signing, share_from_string, share_to_string};
 
 /// A share identified by an `id`, a threshold `k`, a number of total shares `n`,
 /// the `data` held in the share, and the share's `metadata`.
@@ -92,7 +91,7 @@ impl IsSignedShare for Share {
 
         for share in shares {
             if !share.is_signed() {
-                bail!(ErrorKind::MissingSignature(share.get_id()));
+                return Err(Error::MissingSignature(share.get_id()));
             }
 
             let sig_pair = share.signature_pair.as_ref().unwrap();
@@ -104,7 +103,8 @@ impl IsSignedShare for Share {
                 format_share_for_signing(share.threshold, share.id, share.data.as_slice()),
                 &(signature.to_vec(), proof.clone()),
                 root_hash,
-            ).map_err(|e| ErrorKind::InvalidSignature(share.id, String::from(e.description())))?;
+            )
+            .map_err(|e| Error::InvalidSignature(share.id, e.to_string()))?;
 
             rh_compatibility_sets
                 .entry(root_hash)
@@ -117,17 +117,15 @@ impl IsSignedShare for Share {
         let rh_sets = rh_compatibility_sets.keys().count();
 
         match rh_sets {
-            0 => bail!(ErrorKind::EmptyShares),
+            0 => return Err(Error::EmptyShares),
             1 => {} // All shares have the same roothash.
             _ => {
-                bail! {
-                    ErrorKind::IncompatibleSets(
-                        rh_compatibility_sets
-                            .values()
-                            .map(|x| x.to_owned())
-                            .collect(),
-                    )
-                }
+                return Err(Error::IncompatibleSets(
+                    rh_compatibility_sets
+                        .values()
+                        .map(|x| x.to_owned())
+                        .collect(),
+                ));
             }
         }
 
@@ -167,11 +165,3 @@ impl From<(Vec<Vec<u8>>, Proof<MerklePublicKey>)> for SignaturePair {
         }
     }
 }
-
-// TODO: Uncomment when re-implementating standard traits for `Share`
-// impl Hash for SignaturePair {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         self.signature.hash(state);
-//         self.proof.root_hash.hash(state);
-//     }
-// }

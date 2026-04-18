@@ -1,8 +1,9 @@
 use super::{MetaData, Share};
-use dss::format::{format_share_protobuf, parse_share_protobuf};
-use dss::utils::{btreemap_to_hashmap, hashmap_to_btreemap};
-use errors::*;
-use proto::dss::{MetaDataProto, ShareProto};
+use crate::dss::format::{format_share_protobuf, parse_share_protobuf};
+use crate::dss::utils::{btreemap_to_hashmap, hashmap_to_btreemap};
+use crate::errors::*;
+use crate::proto::dss::metadata::MetaDataProto;
+use crate::proto::dss::share::ShareProto;
 
 pub(crate) fn share_to_string(share: Share) -> String {
     let proto = share_to_protobuf(share);
@@ -12,38 +13,36 @@ pub(crate) fn share_to_string(share: Share) -> String {
 pub(crate) fn share_from_string(raw: &str) -> Result<Share> {
     let mut proto = parse_share_protobuf(raw)?;
 
-    let metadata_proto = if proto.has_meta_data() {
-        Some(metadata_from_proto(proto.take_meta_data()))
+    let metadata_proto = if proto.meta_data.is_some() {
+        Some(metadata_from_proto(proto.meta_data.take().unwrap()))
     } else {
         None
     };
 
-    let i = proto.get_id() as u8;
-    let k = proto.get_threshold() as u8;
-    let n = proto.get_shares_count() as u8;
+    let i = proto.id as u8;
+    let k = proto.threshold as u8;
+    let n = proto.shares_count as u8;
 
     if k < 1 || i < 1 {
-        bail! {
-            ErrorKind::ShareParsingError(
-                format!("Found illegal share info: threshold = {}, identifier = {}.", k, i),
-            )
-        }
+        return Err(Error::ShareParsingError(format!(
+            "Found illegal share info: threshold = {}, identifier = {}.",
+            k, i
+        )));
     }
 
     if n < 1 || k > n || i > n {
-        bail! {
-            ErrorKind::ShareParsingError(
-                format!("Found illegal share info: shares_count = {}, threshold = {}, identifier = {}.", n, k, i),
-            )
-        }
+        return Err(Error::ShareParsingError(format!(
+            "Found illegal share info: shares_count = {}, threshold = {}, identifier = {}.",
+            n, k, i
+        )));
     }
 
     let share = Share {
         id: i,
         threshold: k,
         shares_count: n,
-        data: proto.take_data(),
-        hash: proto.take_hash(),
+        data: std::mem::take(&mut proto.data),
+        hash: std::mem::take(&mut proto.hash),
         metadata: metadata_proto,
     };
 
@@ -53,15 +52,15 @@ pub(crate) fn share_from_string(raw: &str) -> Result<Share> {
 pub(crate) fn share_to_protobuf(share: Share) -> ShareProto {
     let mut proto = ShareProto::new();
 
-    proto.set_id(share.id.into());
-    proto.set_threshold(share.threshold.into());
-    proto.set_shares_count(share.shares_count.into());
-    proto.set_data(share.data);
-    proto.set_hash(share.hash);
+    proto.id = share.id.into();
+    proto.threshold = share.threshold.into();
+    proto.shares_count = share.shares_count.into();
+    proto.data = share.data;
+    proto.hash = share.hash;
 
     if let Some(meta_data) = share.metadata {
         let metadata_proto = metadata_to_proto(meta_data);
-        proto.set_meta_data(metadata_proto);
+        proto.meta_data = protobuf::MessageField::some(metadata_proto);
     }
 
     proto
@@ -69,12 +68,12 @@ pub(crate) fn share_to_protobuf(share: Share) -> ShareProto {
 
 fn metadata_to_proto(meta_data: MetaData) -> MetaDataProto {
     let mut proto = MetaDataProto::new();
-    proto.set_tags(btreemap_to_hashmap(meta_data.tags));
+    proto.tags = btreemap_to_hashmap(meta_data.tags);
     proto
 }
 
 fn metadata_from_proto(mut proto: MetaDataProto) -> MetaData {
     MetaData {
-        tags: hashmap_to_btreemap(proto.take_tags()),
+        tags: hashmap_to_btreemap(std::mem::take(&mut proto.tags)),
     }
 }

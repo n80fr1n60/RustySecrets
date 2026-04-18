@@ -1,12 +1,12 @@
-//! Define the various error kinds specific to deterministic secret sharing.
+//! Define the various error kinds specific to secret sharing.
 
-#![allow(unknown_lints, missing_docs)]
+#![allow(missing_docs)]
 
 use std::collections::HashSet;
 use std::fmt;
 
 #[cfg(feature = "dss")]
-use dss::ss1;
+use crate::dss::ss1;
 
 /// Minimum allowed number of shares (n)
 pub(crate) static MIN_SHARES: u8 = 2;
@@ -17,138 +17,96 @@ pub(crate) static MAX_SHARES: u8 = 255;
 /// SSS Shares should be structured as k-n-data hence 3 parts
 pub(crate) static SSS_SHARE_PARTS_COUNT: usize = 3;
 
-/// Create the Error, ErrorKind, ResultExt, and Result types
-error_chain! {
-    errors {
-        ThresholdTooBig(k: u8, n: u8) {
-            description("Threshold k must be smaller than or equal to n")
-            display("Threshold k must be smaller than or equal to n, got: k = {}, n = {}.", k, n)
-        }
+/// The error type for rusty_secrets operations.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Threshold k must be smaller than or equal to n, got: k = {0}, n = {1}.")]
+    ThresholdTooBig(u8, u8),
 
-        ThresholdTooSmall(k: u8) {
-            description("Threshold k must be bigger than or equal to 2")
-            display("Threshold k must be bigger than or equal to 2, got: k = {}", k)
-        }
+    #[error("Threshold k must be bigger than or equal to 2, got: k = {0}")]
+    ThresholdTooSmall(u8),
 
-        SecretTooBig(len: usize, max: usize) {
-            description("The secret is too long")
-            display("The secret is too long, maximum allowed size = {} bytes, got {} bytes", max, len)
-        }
+    #[error("The secret is too long, maximum allowed size = {1} bytes, got {0} bytes")]
+    SecretTooBig(usize, usize),
 
-        InvalidShareCountMax(nb_shares: u8, max: u8) {
-            description("Number of shares is too big")
-            display("Number of shares must be smaller than or equal {}, got: {} shares.", max, nb_shares)
-        }
+    #[error("Number of shares must be smaller than or equal {1}, got: {0} shares.")]
+    InvalidShareCountMax(u8, u8),
 
-        InvalidShareCountMin(nb_shares: u8, min: u8) {
-            description("Number of shares is too small")
-            display("Number of shares must be larger than or equal {}, got: {} shares.", min, nb_shares)
-        }
+    #[error("Number of shares must be larger than or equal {1}, got: {0} shares.")]
+    InvalidShareCountMin(u8, u8),
 
-        EmptySecret {
-            description("The secret cannot be empty")
-            display("The secret cannot be empty")
-        }
+    #[error("The secret cannot be empty")]
+    EmptySecret,
 
-        EmptyShares {
-            description("No shares provided")
-            display("No shares were provided.")
-        }
+    #[error("No shares were provided.")]
+    EmptyShares,
 
-        IncompatibleSets(sets: Vec<HashSet<u8>>) {
-            description("The shares are incompatible with each other.")
-            display("The shares are incompatible with each other.")
-        }
+    #[error("The shares are incompatible with each other.")]
+    IncompatibleSets(Vec<HashSet<u8>>),
 
-        MissingShares(provided: usize, required: u8) {
-            description("The number of shares provided is insufficient to recover the secret.")
-            display("{} shares are required to recover the secret, found only {}.", required, provided)
-        }
+    #[error("{1} shares are required to recover the secret, found only {0}.")]
+    MissingShares(usize, u8),
 
-        InvalidSignature(share_id: u8, signature: String) {
-            description("The signature of this share is not valid.")
-        }
+    #[error("The signature of this share is not valid.")]
+    InvalidSignature(u8, String),
 
-        MissingSignature(share_id: u8) {
-            description("Signature is missing while shares are required to be signed.")
-        }
+    #[error("Signature is missing while shares are required to be signed.")]
+    MissingSignature(u8),
 
-        SecretDeserializationError {
-            description("An issue was encountered deserializing the secret. \
-                         Updating to the latest version of RustySecrets might help fix this.")
-        }
+    #[error("An issue was encountered deserializing the secret. Updating to the latest version of RustySecrets might help fix this.")]
+    SecretDeserializationError,
 
-        ShareParsingError(reason: String) {
-            description("This share is incorrectly formatted.")
-            display("This share is incorrectly formatted. Reason: {}", reason)
-        }
+    #[error("This share is incorrectly formatted. Reason: {0}")]
+    ShareParsingError(String),
 
-        ShareParsingErrorEmptyShare(share_id: u8) {
-            description("This share is empty.")
-            display("Found empty share for share identifier ({})", share_id)
-        }
+    #[error("Found empty share for share identifier ({0})")]
+    ShareParsingErrorEmptyShare(u8),
 
-        ShareParsingInvalidShareId(share_id: u8) {
-            description("Invalid share identifier.")
-            display("Found invalid share identifier ({})", share_id)
-        }
+    #[error("Found invalid share identifier ({0})")]
+    ShareParsingInvalidShareId(u8),
 
-        ShareParsingInvalidShareThreshold(k: u8, id: u8) {
-            description("Threshold k must be bigger than or equal to 2")
-            display("Threshold k must be bigger than or equal to 2. Got k = {} for share identifier {}.", k, id)
-        }
+    #[error(
+        "Threshold k must be bigger than or equal to 2. Got k = {0} for share identifier {1}."
+    )]
+    ShareParsingInvalidShareThreshold(u8, u8),
 
-        InvalidSS1Parameters(r: usize, s: usize) {
-            description("Invalid parameters for the SS1 sharing scheme")
-            display("Invalid parameters for the SS1 sharing scheme: r = {}, s = {}.", r, s)
-        }
+    #[error("Invalid parameters for the SS1 sharing scheme: r = {0}, s = {1}.")]
+    InvalidSS1Parameters(usize, usize),
 
-        InvalidSplitParametersZero(k: u8, n: u8) {
-            description("Parameters k and n must be greater than zero")
-            display("Parameters k and n must be greater than zero.")
-        }
+    #[error("Parameters k and n must be greater than zero.")]
+    InvalidSplitParametersZero(u8, u8),
 
-        #[cfg(feature = "dss")]
-        MismatchingShares(got: ss1::Share, expected: ss1::Share) {
-            description("Share mismatch during verification of secret recovery")
-            display("Share mismatch during verification of secret recovery.")
-        }
+    #[cfg(feature = "dss")]
+    #[error("Share mismatch during verification of secret recovery.")]
+    MismatchingShares(ss1::Share, ss1::Share),
 
-        CannotGenerateRandomNumbers {
-            description("Cannot generate random numbers")
-            display("Cannot generate random numbers.")
-        }
+    #[error("Cannot generate random numbers.")]
+    CannotGenerateRandomNumbers,
 
-        DuplicateShareId(share_id: u8) {
-            description("This share number has already been used by a previous share.")
-            display("This share number ({}) has already been used by a previous share.", share_id)
-        }
+    #[error("This share number ({0}) has already been used by a previous share.")]
+    DuplicateShareId(u8),
 
-        InconsistentSecretLengths(id: u8, slen_: usize, ids: Vec<u8>, slen: usize) {
-            description("The shares are incompatible with each other because they do not all have the same secret length.")
-            display("The share identifier {} had secret length {}, while the secret length {} was found for share identifier(s): {}.", id, slen_, slen, no_more_than_five(ids))
-        }
+    #[error("The share identifier {0} had secret length {1}, while the secret length {3} was found for share identifier(s): {ids}.", ids = no_more_than_five(.2))]
+    InconsistentSecretLengths(u8, usize, Vec<u8>, usize),
 
-        InconsistentShares {
-            description("The shares are inconsistent")
-            display("The shares are inconsistent")
-        }
+    #[error("The shares are inconsistent")]
+    InconsistentShares,
 
-        InconsistentThresholds(id: u8, k_: u8, ids: Vec<u8>, k: u8) {
-            description("The shares are incompatible with each other because they do not all have the same threshold.")
-            display("The share identifier {} had k = {}, while k = {} was found for share identifier(s): {}.", id, k_, k, no_more_than_five(ids))
-        }
+    #[error("The share identifier {0} had k = {1}, while k = {3} was found for share identifier(s): {ids}.", ids = no_more_than_five(.2))]
+    InconsistentThresholds(u8, u8, Vec<u8>, u8),
 
-    }
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 
-    foreign_links {
-        Io(::std::io::Error);
-        IntegerParsingError(::std::num::ParseIntError);
-    }
+    #[error(transparent)]
+    IntegerParsingError(#[from] std::num::ParseIntError),
 }
 
+/// Result type alias for rusty_secrets operations.
+pub type Result<T> = std::result::Result<T, Error>;
+
 /// Takes a `Vec<T>` and formats it like the normal `fmt::Debug` implementation, unless it has more
-//than five elements, in which case the rest are replaced by ellipsis.
+/// than five elements, in which case the rest are replaced by ellipsis.
 fn no_more_than_five<T: fmt::Debug + fmt::Display>(vec: &Vec<T>) -> String {
     let len = vec.len();
     if len > 5 {

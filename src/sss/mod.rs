@@ -1,33 +1,32 @@
 //! SSS provides Shamir's secret sharing with raw data.
 
-use errors::*;
+use crate::errors::*;
 
 mod share;
 pub(crate) use self::share::*;
 
 mod format;
-// pub use self::format::*;
 
 mod scheme;
 pub(crate) use self::scheme::*;
 
 mod encode;
 
-use rand::{OsRng, Rng};
+use rand::Rng;
 use ring::digest::{Algorithm, SHA512};
-static HASH_ALGO: &'static Algorithm = &SHA512;
+static HASH_ALGO: &Algorithm = &SHA512;
 
 /// Performs threshold k-out-of-n Shamir's secret sharing.
 ///
-/// Uses a `rand::OsRng` as a source of entropy.
+/// Uses a `rand::rngs::OsRng` as a source of entropy.
 ///
 /// # Examples
 ///
 /// ```
 /// use rusty_secrets::sss::split_secret;
 ///
-/// let secret = "These programs were never about terrorism: they’re about economic spying, \
-///               social control, and diplomatic manipulation. They’re about power.";
+/// let secret = "These programs were never about terrorism: they're about economic spying, \
+///               social control, and diplomatic manipulation. They're about power.";
 ///
 /// match split_secret(7, 10, &secret.as_bytes(), true) {
 ///     Ok(shares) => {
@@ -40,7 +39,7 @@ static HASH_ALGO: &'static Algorithm = &SHA512;
 /// ```
 pub fn split_secret(k: u8, n: u8, secret: &[u8], sign_shares: bool) -> Result<Vec<String>> {
     SSS::default()
-        .split_secret(&mut OsRng::new()?, k, n, secret, sign_shares)
+        .split_secret(&mut rand::rng(), k, n, secret, sign_shares)
         .map(|shares| shares.into_iter().map(Share::into_string).collect())
 }
 
@@ -49,24 +48,15 @@ pub fn split_secret(k: u8, n: u8, secret: &[u8], sign_shares: bool) -> Result<Ve
 /// # Examples
 ///
 /// ```
-/// # extern crate rusty_secrets;
-/// # extern crate rand;
-/// #
-/// # use rand::ChaChaRng;
-/// #
-/// # fn some_custom_rng() -> ChaChaRng {
-/// #     let mut rng = ChaChaRng::new_unseeded();
-/// #     rng.set_counter(42, 42);
-/// #     rng
-/// # }
-/// #
-/// # fn main() {
 /// use rusty_secrets::sss::split_secret_rng;
+/// use rand::SeedableRng;
+/// use rand_chacha::ChaChaRng;
 ///
-/// let secret = "These programs were never about terrorism: they’re about economic spying, \
-///               social control, and diplomatic manipulation. They’re about power.";
+/// let rng_seed = [0u8; 32];
+/// let mut rng = ChaChaRng::from_seed(rng_seed);
 ///
-/// let mut rng = some_custom_rng();
+/// let secret = "These programs were never about terrorism: they're about economic spying, \
+///               social control, and diplomatic manipulation. They're about power.";
 ///
 /// match split_secret_rng(&mut rng, 7, 10, &secret.as_bytes(), true) {
 ///     Ok(shares) => {
@@ -76,7 +66,6 @@ pub fn split_secret(k: u8, n: u8, secret: &[u8], sign_shares: bool) -> Result<Ve
 ///         // Deal with error
 ///     }
 /// }
-/// # }
 /// ```
 pub fn split_secret_rng<R: Rng>(
     rng: &mut R,
