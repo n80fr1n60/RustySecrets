@@ -115,12 +115,12 @@ mod tests {
         }
 
         fn interpolate_evaluate_at_0_eq_evaluate_at(ys: Vec<u8>) -> TestResult {
-            if ys.is_empty() || ys.len() > std::u8::MAX as usize {
+            if ys.is_empty() || ys.len() > u8::MAX as usize {
                 return TestResult::discard();
             }
 
             let points = ys.into_iter()
-                           .zip(1..std::u8::MAX)
+                           .zip(1..u8::MAX)
                            .map(|(y, x)| (x, y))
                            .collect::<Vec<_>>();
 

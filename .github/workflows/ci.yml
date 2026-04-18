@@ -34,6 +34,9 @@ jobs:
       - name: Test (all features)
         run: cargo test --verbose --all-features
 
+      - name: Build benches (all features)
+        run: cargo bench --verbose --all-features --no-run
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -44,8 +47,8 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
 
-      - name: Clippy (all features)
-        run: cargo clippy --all-features -- -D warnings -A clippy::result_large_err -A clippy::doc_markdown
+      - name: Clippy (all targets, all features)
+        run: cargo clippy --all-features --all-targets -- -D warnings -A clippy::result_large_err -A clippy::doc_markdown
 
   fmt:
     name: Formatting

@@ -1,58 +1,56 @@
-#![cfg(test)]
-#![feature(test)]
+use std::hint::black_box;
 
-extern crate rusty_secrets;
-extern crate test;
+use criterion::{criterion_group, criterion_main, Criterion};
+use rusty_secrets::wrapped_secrets;
 
-mod shared;
+mod support;
 
-mod wrapped_secrets {
+const CASES: [(&str, u8, u8, bool); 4] = [
+    ("1kb_3_5", 3, 5, false),
+    ("1kb_3_5_signed", 3, 5, true),
+    ("1kb_10_25", 10, 25, false),
+    ("1kb_10_25_signed", 10, 25, true),
+];
 
-    use rusty_secrets::wrapped_secrets;
-    use shared;
-    use test::{black_box, Bencher};
+fn bench_generate(c: &mut Criterion) {
+    let secret = support::secret_1kb();
+    let mut group = c.benchmark_group("wrapped_secrets/generate");
 
-    macro_rules! bench_generate {
-        ($name:ident, $k:expr, $n:expr, $secret:ident, $signed:expr) => {
-            #[bench]
-            fn $name(b: &mut Bencher) {
-                let secret = shared::$secret();
-
-                b.iter(move || {
-                    let shares =
-                        wrapped_secrets::split_secret($k, $n, secret, None, $signed).unwrap();
-                    black_box(shares);
-                });
-            }
-        };
+    for (name, k, n, signed) in CASES {
+        group.bench_function(name, |b| {
+            b.iter(|| {
+                let shares =
+                    wrapped_secrets::split_secret(k, n, black_box(secret), None, signed).unwrap();
+                black_box(shares);
+            });
+        });
     }
 
-    macro_rules! bench_recover {
-        ($name:ident, $k:expr, $n:expr, $secret:ident, $signed:expr) => {
-            #[bench]
-            fn $name(b: &mut Bencher) {
-                let secret = shared::$secret();
-                let all_shares =
-                    wrapped_secrets::split_secret($k, $n, &secret, None, $signed).unwrap();
-                let shares = all_shares.into_iter().take($k).collect::<Vec<_>>();
-
-                b.iter(|| {
-                    let result = wrapped_secrets::recover_secret(&shares, $signed).unwrap();
-                    black_box(result);
-                });
-            }
-        };
-    }
-
-    bench_generate!(generate_1kb_3_5, 3, 5, secret_1kb, false);
-    bench_recover!(recover_1kb_3_5, 3, 5, secret_1kb, false);
-
-    bench_generate!(generate_1kb_3_5_signed, 3, 5, secret_1kb, true);
-    bench_recover!(recover_1kb_3_5_signed, 3, 5, secret_1kb, true);
-
-    bench_generate!(generate_1kb_10_25, 10, 25, secret_1kb, false);
-    bench_recover!(recover_1kb_10_25, 10, 25, secret_1kb, false);
-
-    bench_generate!(generate_1kb_10_25_signed, 10, 25, secret_1kb, true);
-    bench_recover!(recover_1kb_10_25_signed, 10, 25, secret_1kb, true);
+    group.finish();
 }
+
+fn bench_recover(c: &mut Criterion) {
+    let secret = support::secret_1kb();
+    let mut group = c.benchmark_group("wrapped_secrets/recover");
+
+    for (name, k, n, signed) in CASES {
+        let shares = wrapped_secrets::split_secret(k, n, secret, None, signed)
+            .unwrap()
+            .into_iter()
+            .take(k as usize)
+            .collect::<Vec<_>>();
+
+        group.bench_function(name, move |b| {
+            b.iter(|| {
+                let recovered =
+                    wrapped_secrets::recover_secret(black_box(shares.as_slice()), signed).unwrap();
+                black_box(recovered);
+            });
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_generate, bench_recover);
+criterion_main!(benches);

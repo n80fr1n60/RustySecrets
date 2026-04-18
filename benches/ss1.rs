@@ -1,60 +1,56 @@
-#![cfg(test)]
-#![feature(test)]
-#![cfg(feature = "dss")]
+use std::hint::black_box;
 
-extern crate rusty_secrets;
-extern crate test;
+use criterion::{criterion_group, criterion_main, Criterion};
+use rusty_secrets::dss::ss1;
 
-mod shared;
+mod support;
 
-mod ss1 {
+const CASES: [(&str, u8, u8); 2] = [("1kb_3_5", 3, 5), ("1kb_10_25", 10, 25)];
 
-    use rusty_secrets::dss::ss1;
-    use shared;
-    use test::{black_box, Bencher};
+fn bench_generate(c: &mut Criterion) {
+    let secret = support::secret_1kb();
+    let mut group = c.benchmark_group("ss1/generate");
 
-    macro_rules! bench_generate {
-        ($name:ident, $k:expr, $n:expr, $secret:ident) => {
-            #[bench]
-            fn $name(b: &mut Bencher) {
-                let secret = shared::$secret();
-
-                b.iter(move || {
-                    let shares = ss1::split_secret(
-                        $k,
-                        $n,
-                        &secret,
-                        ss1::Reproducibility::reproducible(),
-                        &None,
-                    )
-                    .unwrap();
-                    black_box(shares);
-                });
-            }
-        };
+    for (name, k, n) in CASES {
+        group.bench_function(name, |b| {
+            b.iter(|| {
+                let shares = ss1::split_secret(
+                    k,
+                    n,
+                    black_box(secret),
+                    ss1::Reproducibility::reproducible(),
+                    &None,
+                )
+                .unwrap();
+                black_box(shares);
+            });
+        });
     }
 
-    macro_rules! bench_recover {
-        ($name:ident, $k:expr, $n:expr, $secret:ident) => {
-            #[bench]
-            fn $name(b: &mut Bencher) {
-                let secret = shared::$secret();
-                let all_shares =
-                    ss1::split_secret($k, $n, &secret, ss1::Reproducibility::reproducible(), &None)
-                        .unwrap();
-                let shares = &all_shares.into_iter().take($k).collect::<Vec<_>>().clone();
-
-                b.iter(|| {
-                    let result = ss1::recover_secret(&shares.to_vec()).unwrap();
-                    black_box(result);
-                });
-            }
-        };
-    }
-
-    bench_generate!(generate_1kb_3_5, 3, 5, secret_1kb);
-    bench_recover!(recover_1kb_3_5, 3, 5, secret_1kb);
-
-    bench_generate!(generate_1kb_10_25, 10, 25, secret_1kb);
-    bench_recover!(recover_1kb_10_25, 10, 25, secret_1kb);
+    group.finish();
 }
+
+fn bench_recover(c: &mut Criterion) {
+    let secret = support::secret_1kb();
+    let mut group = c.benchmark_group("ss1/recover");
+
+    for (name, k, n) in CASES {
+        let shares = ss1::split_secret(k, n, secret, ss1::Reproducibility::reproducible(), &None)
+            .unwrap()
+            .into_iter()
+            .take(k as usize)
+            .collect::<Vec<_>>();
+
+        group.bench_function(name, move |b| {
+            b.iter(|| {
+                let recovered = ss1::recover_secret(black_box(shares.as_slice())).unwrap();
+                black_box(recovered);
+            });
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_generate, bench_recover);
+criterion_main!(benches);

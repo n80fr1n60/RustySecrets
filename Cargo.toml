@@ -34,11 +34,30 @@ thiserror = "2"
 protobuf-codegen = "3.7"
 
 [dev-dependencies]
+criterion = "0.8.2"
 itertools = "0.14"
 quickcheck = "1.1"
 flate2 = "1.1"
 rand = "0.9"
 rand_chacha = "0.9"
+
+[[bench]]
+name = "sss"
+harness = false
+
+[[bench]]
+name = "wrapped_secrets"
+harness = false
+
+[[bench]]
+name = "ss1"
+harness = false
+required-features = ["dss"]
+
+[[bench]]
+name = "thss"
+harness = false
+required-features = ["dss"]
 
 [profile.bench]
 opt-level = 3

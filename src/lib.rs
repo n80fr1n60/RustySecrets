@@ -27,7 +27,3 @@ pub mod wrapped_secrets;
 
 #[cfg(feature = "dss")]
 pub mod dss;
-
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck;

@@ -11,7 +11,7 @@ pub fn wrap_from_sellibitze(share: &str) -> String {
     let mut share_protobuf = ShareProto::new();
     share_protobuf.shamir_data = share_data;
 
-    let b64_share = STANDARD_NO_PAD.encode(&share_protobuf.write_to_bytes().unwrap());
+    let b64_share = STANDARD_NO_PAD.encode(share_protobuf.write_to_bytes().unwrap());
 
     format!("{}-{}-{}", parts[0], parts[1], b64_share)
 }
@@ -21,9 +21,9 @@ fn test_recover_sellibitze() {
     let share1 = "2-1-1YAYwmOHqZ69jA";
     let share2 = "2-4-F7rAjX3UOa53KA";
 
-    let shares = vec![share1, share2]
-        .iter()
-        .map(|x| wrap_from_sellibitze(x))
+    let shares = [share1, share2]
+        .into_iter()
+        .map(wrap_from_sellibitze)
         .collect::<Vec<_>>();
 
     let mut secret = "My secret".to_string().into_bytes();
@@ -45,9 +45,9 @@ fn test_recover_es_test_vectors() {
     let share5 =
         "5-7-i8iL6bVf272B3qIjp0QqSny6AIm+DkP7oQjkVVLvx9EMhlvd4HJOxPpmtNF/RjA/zz21d7DY/B//saOPpBQa";
 
-    let shares = vec![share1, share2, share3, share4, share5]
-        .iter()
-        .map(|x| wrap_from_sellibitze(x))
+    let shares = [share1, share2, share3, share4, share5]
+        .into_iter()
+        .map(wrap_from_sellibitze)
         .collect::<Vec<_>>();
 
     let secret = "The immoral cannot be made moral through the use of secret law."
@@ -63,9 +63,9 @@ fn test_recover_sellibitze_more_than_threshold_shars() {
     let share3 = "2-2-YJZQDGm22Y77Gw";
     let share4 = "2-5-j0P4PHsw4lW+rg";
 
-    let shares = vec![share1, share2, share3, share4]
-        .iter()
-        .map(|x| wrap_from_sellibitze(x))
+    let shares = [share1, share2, share3, share4]
+        .into_iter()
+        .map(wrap_from_sellibitze)
         .collect::<Vec<_>>();
 
     let mut secret = "My secret".to_string().into_bytes();
