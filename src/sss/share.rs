@@ -86,6 +86,11 @@ impl IsShare for Share {
 impl IsSignedShare for Share {
     type Signature = Option<SignaturePair>;
 
+    // NOTE: Each share's Merkle proof is verified against its own embedded root hash.
+    // The cross-share root hash consistency check (below) ensures all shares came from
+    // the same dealing session. However, if an attacker controls ALL k shares, they can
+    // forge a self-consistent set with a fabricated Merkle tree. There is no external
+    // trust anchor for the root hash — security relies on at least one honest share.
     fn verify_signatures(shares: &[Self]) -> Result<()> {
         let mut rh_compatibility_sets = HashMap::new();
 

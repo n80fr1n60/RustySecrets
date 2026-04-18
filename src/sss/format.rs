@@ -29,8 +29,8 @@ pub(crate) fn share_from_string(s: &str, is_signed: bool) -> Result<Share> {
 
     if parts.len() != SSS_SHARE_PARTS_COUNT {
         return Err(Error::ShareParsingError(format!(
-            "Expected 3 parts separated by a minus sign. Found {}.",
-            s
+            "Expected 3 parts separated by a minus sign, found {} parts.",
+            parts.len()
         )));
     }
     let (k, i, p3) = {
@@ -49,6 +49,14 @@ pub(crate) fn share_from_string(s: &str, is_signed: bool) -> Result<Share> {
         return Err(Error::ShareParsingErrorEmptyShare(i));
     }
 
+    const MAX_SHARE_PAYLOAD_BYTES: usize = 1_048_576; // 1 MB
+
+    if p3.len() > MAX_SHARE_PAYLOAD_BYTES * 4 / 3 + 4 {
+        return Err(Error::ShareParsingError(
+            "Share payload exceeds maximum allowed size".to_owned(),
+        ));
+    }
+
     let raw_data = STANDARD_NO_PAD
         .decode(p3)
         .map_err(|_| Error::ShareParsingError("Base64 decoding of data block failed".to_owned()))?;
@@ -62,16 +70,23 @@ pub(crate) fn share_from_string(s: &str, is_signed: bool) -> Result<Share> {
     let data = protobuf_data.shamir_data.clone();
 
     let signature_pair = if is_signed {
-        let p_result = Proof::parse_from_bytes(&protobuf_data.proof, HASH_ALGO);
+        let p = Proof::parse_from_bytes(&protobuf_data.proof, HASH_ALGO)
+            .map_err(|e| {
+                Error::ShareParsingError(format!("Failed to parse proof protobuf: {e}"))
+            })?
+            .ok_or_else(|| {
+                Error::ShareParsingError("Proof data is incomplete or empty".to_owned())
+            })?;
 
-        let p_opt = p_result.unwrap();
-        let p = p_opt.unwrap();
+        let pub_key = PublicKey::from_vec(p.value, HASH_ALGO).ok_or_else(|| {
+            Error::ShareParsingError("Invalid public key length in proof".to_owned())
+        })?;
 
         let proof = Proof {
             algorithm: HASH_ALGO,
             lemma: p.lemma,
             root_hash: p.root_hash,
-            value: MerklePublicKey::new(PublicKey::from_vec(p.value, HASH_ALGO).unwrap()),
+            value: MerklePublicKey::new(pub_key),
         };
 
         let signature = protobuf_data.signature.clone();

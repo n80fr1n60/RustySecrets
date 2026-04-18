@@ -13,6 +13,14 @@ pub(crate) fn format_share_protobuf(share: &ShareProto) -> String {
 pub(crate) fn parse_share_protobuf(raw: &str) -> Result<ShareProto> {
     let (threshold, id, base64_data) = parse_raw_share(raw)?;
 
+    const MAX_SHARE_PAYLOAD_BYTES: usize = 1_048_576; // 1 MB
+
+    if base64_data.len() > MAX_SHARE_PAYLOAD_BYTES * 4 / 3 + 4 {
+        return Err(Error::ShareParsingError(
+            "Share payload exceeds maximum allowed size".to_owned(),
+        ));
+    }
+
     let data = STANDARD_NO_PAD.decode(&base64_data).map_err(|_| {
         Error::ShareParsingError("Base64 decoding of data block failed".to_string())
     })?;
@@ -47,8 +55,8 @@ fn parse_raw_share(raw: &str) -> Result<(u32, u32, String)> {
 
     if parts.len() != 3 {
         return Err(Error::ShareParsingError(format!(
-            "Expected 3 parts separated by a minus sign. Found {}.",
-            raw
+            "Expected 3 parts separated by a minus sign, found {} parts.",
+            parts.len()
         )));
     }
 

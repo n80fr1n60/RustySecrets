@@ -19,6 +19,13 @@ pub(crate) fn share_from_string(raw: &str) -> Result<Share> {
         None
     };
 
+    if proto.id > 255 || proto.threshold > 255 || proto.shares_count > 255 {
+        return Err(Error::ShareParsingError(format!(
+            "Share field value exceeds u8 range: id = {}, threshold = {}, shares_count = {}.",
+            proto.id, proto.threshold, proto.shares_count
+        )));
+    }
+
     let i = proto.id as u8;
     let k = proto.threshold as u8;
     let n = proto.shares_count as u8;
