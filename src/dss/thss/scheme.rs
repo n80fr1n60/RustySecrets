@@ -67,7 +67,7 @@ impl ThSS {
         let rands_len = random_bytes_count(threshold, secret_len);
         let rands = random_bytes(self.random.as_ref(), rands_len)?;
 
-        let shares = (1..shares_count + 1)
+        let shares = (1..=shares_count)
             .map(|id| {
                 let data = encode_secret(secret, threshold, id, &rands);
 

@@ -190,4 +190,16 @@ mod tests {
 
         assert_eq!(shares_1, shares_2);
     }
+
+    #[test]
+    fn split_supports_max_share_count() {
+        let secret = vec![42];
+
+        let shares =
+            split_secret(255, 255, &secret, Reproducibility::reproducible(), &None).unwrap();
+        assert_eq!(shares.len(), 255);
+        assert_eq!(shares[0].threshold, 255);
+        assert_eq!(shares[0].shares_count, 255);
+        assert_eq!(shares.last().unwrap().id, 255);
+    }
 }

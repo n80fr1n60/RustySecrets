@@ -118,4 +118,19 @@ mod tests {
         assert_eq!(access.shares_count, 10);
         assert_eq!(None, metadata);
     }
+
+    #[test]
+    fn split_and_recover_supports_max_share_count() {
+        let secret = vec![42];
+
+        let shares = split_secret(255, 255, &secret, &None).unwrap();
+        assert_eq!(shares.len(), 255);
+
+        let (recovered, access, metadata) = recover_secret(&shares).unwrap();
+
+        assert_eq!(secret, recovered);
+        assert_eq!(access.threshold, 255);
+        assert_eq!(access.shares_count, 255);
+        assert_eq!(None, metadata);
+    }
 }
