@@ -287,6 +287,7 @@ dependencies = [
 [[package]]
 name = "merkle_sigs"
 version = "1.7.1-pre"
+source = "git+https://github.com/n80fr1n60/merkle_sigs.rs?branch=master#02ad34ef89f3af0c176eef80a9e74f6daa66ea12"
 dependencies = [
  "lamport_sigs",
  "merkle",

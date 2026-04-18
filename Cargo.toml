@@ -26,7 +26,7 @@ base64 = "0.22"
 rand = "0.9"
 rand_chacha = { version = "0.9", optional = true }
 ring = "0.17"
-merkle_sigs = { path = "./merkle_sigs.rs" }
+merkle_sigs = { git = "https://github.com/n80fr1n60/merkle_sigs.rs", branch = "master" }
 protobuf = "3.7"
 thiserror = "2"
 
