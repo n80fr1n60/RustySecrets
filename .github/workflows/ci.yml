@@ -79,6 +79,50 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install coverage tooling
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup component add llvm-tools-preview --toolchain stable
+          cargo +stable install cargo-llvm-cov --locked
+
+      - name: Coverage (default features)
+        run: cargo +stable llvm-cov --lcov --output-path lcov.info --ignore-filename-regex '.*/target/.*/build/.*/out/.*'
+
+      - name: Upload default coverage to Coveralls
+        uses: coverallsapp/github-action@648a8eb78e6d50909eff900e4ec85cab4524a45b # v2.3.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: lcov.info
+          format: lcov
+          flag-name: default
+          parallel: true
+          debug: true
+
+      - name: Coverage (all features)
+        run: cargo +stable llvm-cov --all-features --lcov --output-path lcov-dss.info --ignore-filename-regex '.*/target/.*/build/.*/out/.*'
+
+      - name: Upload dss coverage to Coveralls
+        uses: coverallsapp/github-action@648a8eb78e6d50909eff900e4ec85cab4524a45b # v2.3.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: lcov-dss.info
+          format: lcov
+          flag-name: dss
+          parallel: true
+          debug: true
+
+      - name: Finish Coveralls build
+        uses: coverallsapp/github-action@648a8eb78e6d50909eff900e4ec85cab4524a45b # v2.3.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
+          debug: true
+
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
