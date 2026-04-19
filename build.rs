@@ -1,20 +1,28 @@
 use std::env;
 use std::fmt;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Write;
 use std::num::Wrapping;
 use std::path::Path;
 
 const POLY: u8 = 0x1D;
+const PROTO_FILES: &[&str] = &[
+    "protobuf/version.proto",
+    "protobuf/wrapped/share.proto",
+    "protobuf/wrapped/secret.proto",
+    "protobuf/dss/share.proto",
+    "protobuf/dss/metadata.proto",
+    "protobuf/dss/secret.proto",
+];
 
-/// replicates the least significant bit to every other bit
+/// Replicates the least significant bit to every other bit.
 #[inline]
 fn mask(bit: u8) -> u8 {
     (Wrapping(0u8) - Wrapping(bit & 1)).0
 }
 
-/// multiplies a polynomial with x and returns the residual
-/// of the polynomial division with POLY as divisor
+/// Multiplies a polynomial with x and returns the residual
+/// of the polynomial division with POLY as divisor.
 #[inline]
 fn xtimes(poly: u8) -> u8 {
     (poly << 1) ^ (mask(poly >> 7) & POLY)
@@ -25,7 +33,7 @@ struct Tables {
     log: [u8; 256],
 }
 
-fn generate_tables(mut file: &File) {
+fn generate_tables(file: &mut File) {
     let mut tabs = Tables {
         exp: [0; 256],
         log: [0; 256],
@@ -39,13 +47,10 @@ fn generate_tables(mut file: &File) {
     }
     tabs.exp[255] = 1;
 
-    match write!(file, "{}", tabs) {
-        Ok(()) => {}
-        Err(_) => panic!("Could not format the table. Aborting build."),
-    };
+    write!(file, "{}", tabs).expect("Could not format the table. Aborting build.");
 }
 
-fn farray(array: [u8; 256], f: &mut fmt::Formatter) -> fmt::Result {
+fn farray(array: [u8; 256], f: &mut fmt::Formatter<'_>) -> fmt::Result {
     for (index, value) in array.into_iter().enumerate() {
         write!(f, "{}", value)?;
         if index != array.len() - 1 {
@@ -56,7 +61,7 @@ fn farray(array: [u8; 256], f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 impl fmt::Display for Tables {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Tables {{")?;
         write!(f, "    exp: [")?;
         farray(self.exp, f)?;
@@ -68,102 +73,120 @@ impl fmt::Display for Tables {
     }
 }
 
-#[allow(unused_must_use)]
-fn main() {
-    // Generate GF(256) lookup tables
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let dest = Path::new(&out_dir).join("nothinghardcoded.rs");
+fn path_str(path: &Path) -> &str {
+    path.to_str()
+        .expect("Generated protobuf output path must be valid UTF-8")
+}
 
-    let mut f = File::create(&dest).unwrap();
+fn rust_path_literal(path: &Path) -> String {
+    format!("{:?}", path_str(path))
+}
+
+fn generate_gf256_tables(out_dir: &Path) {
+    let dest = out_dir.join("nothinghardcoded.rs");
+    let mut file = File::create(&dest).expect("Could not create GF(256) lookup table output");
 
     write!(
-        f,
+        file,
         "pub struct Tables {{ \
          pub exp: [u8; 256], \
          pub log: [u8; 256] \
          }} \
          \
          pub static TABLES: Tables = "
-    );
+    )
+    .expect("Could not write the GF(256) table prelude");
 
-    generate_tables(&f);
+    generate_tables(&mut file);
+}
 
-    // Generate protobuf code — separate calls per package to avoid name collisions
-    let proto_base = Path::new("src/proto");
+fn generate_protobuf_modules(out_dir: &Path) {
+    let proto_base = out_dir.join("proto");
+    let wrapped_dir = proto_base.join("wrapped");
+    let dss_dir = proto_base.join("dss");
 
-    // version.proto (no package)
+    fs::create_dir_all(&wrapped_dir).expect("Could not create wrapped protobuf output directory");
+    fs::create_dir_all(&dss_dir).expect("Could not create dss protobuf output directory");
+
     protobuf_codegen::Codegen::new()
         .pure()
-        .out_dir(proto_base.to_str().unwrap())
+        .out_dir(path_str(&proto_base))
         .input("protobuf/version.proto")
         .include("protobuf")
         .run()
         .expect("protobuf codegen (version) failed");
 
-    // wrapped package — also include version.proto since wrapped/secret.proto imports it
-    let wrapped_dir = proto_base.join("wrapped");
-    std::fs::create_dir_all(&wrapped_dir).unwrap();
     protobuf_codegen::Codegen::new()
         .pure()
-        .out_dir(wrapped_dir.to_str().unwrap())
+        .out_dir(path_str(&wrapped_dir))
         .input("protobuf/wrapped/share.proto")
         .input("protobuf/wrapped/secret.proto")
         .include("protobuf")
         .run()
         .expect("protobuf codegen (wrapped) failed");
 
-    // Fix: wrapped/secret.rs references super::version, but version is at proto level.
-    // Add re-export in wrapped/mod.rs
-    {
-        let wrapped_mod = wrapped_dir.join("mod.rs");
-        let mut wf = File::create(&wrapped_mod).unwrap();
-        write!(
-            wf,
-            "#![allow(missing_docs)]\n\
-             pub mod secret;\n\
-             pub mod share;\n\
-             pub use crate::proto::version;\n"
-        );
-    }
-
-    // dss package
-    let dss_dir = proto_base.join("dss");
-    std::fs::create_dir_all(&dss_dir).unwrap();
     protobuf_codegen::Codegen::new()
         .pure()
-        .out_dir(dss_dir.to_str().unwrap())
+        .out_dir(path_str(&dss_dir))
         .input("protobuf/dss/share.proto")
         .input("protobuf/dss/metadata.proto")
         .input("protobuf/dss/secret.proto")
         .include("protobuf")
         .run()
         .expect("protobuf codegen (dss) failed");
+}
 
-    // Fix: dss/secret.rs references super::version, but version is at proto level.
-    // Also re-export metadata for sibling access.
-    {
-        let dss_mod = dss_dir.join("mod.rs");
-        let mut df = File::create(&dss_mod).unwrap();
-        write!(
-            df,
-            "#![allow(missing_docs)]\n\
-             pub mod metadata;\n\
-             pub mod secret;\n\
-             pub mod share;\n\
-             pub use crate::proto::version;\n"
-        );
+fn write_protobuf_module_descriptors(out_dir: &Path, manifest_dir: &Path) {
+    let generated_proto_dir = out_dir.join("proto");
+    let src_proto_dir = manifest_dir.join("src").join("proto");
+
+    let proto_mod = format!(
+        "#[cfg(feature = \"dss\")]\n#[path = {dss_mod}]\npub mod dss;\n\
+         #[path = {version_rs}]\npub mod version;\n\
+         #[path = {wrapped_mod}]\npub mod wrapped;\n",
+        dss_mod = rust_path_literal(&src_proto_dir.join("dss").join("mod.rs")),
+        version_rs = rust_path_literal(&generated_proto_dir.join("version.rs")),
+        wrapped_mod = rust_path_literal(&src_proto_dir.join("wrapped").join("mod.rs")),
+    );
+
+    let wrapped_mod = format!(
+        "#[path = {secret_rs}]\npub mod secret;\n\
+         #[path = {share_rs}]\npub mod share;\n\
+         pub use crate::proto::version;\n",
+        secret_rs = rust_path_literal(&generated_proto_dir.join("wrapped").join("secret.rs")),
+        share_rs = rust_path_literal(&generated_proto_dir.join("wrapped").join("share.rs")),
+    );
+
+    let dss_mod = format!(
+        "#[path = {metadata_rs}]\npub mod metadata;\n\
+         #[path = {secret_rs}]\npub mod secret;\n\
+         #[path = {share_rs}]\npub mod share;\n\
+         pub use crate::proto::version;\n",
+        metadata_rs = rust_path_literal(&generated_proto_dir.join("dss").join("metadata.rs")),
+        secret_rs = rust_path_literal(&generated_proto_dir.join("dss").join("secret.rs")),
+        share_rs = rust_path_literal(&generated_proto_dir.join("dss").join("share.rs")),
+    );
+
+    fs::write(out_dir.join("proto_mod.rs"), proto_mod)
+        .expect("Could not write root protobuf module descriptor");
+    fs::write(out_dir.join("proto_wrapped_mod.rs"), wrapped_mod)
+        .expect("Could not write wrapped protobuf module descriptor");
+    fs::write(out_dir.join("proto_dss_mod.rs"), dss_mod)
+        .expect("Could not write dss protobuf module descriptor");
+}
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    for proto in PROTO_FILES {
+        println!("cargo:rerun-if-changed={proto}");
     }
 
-    // Write hand-crafted mod.rs that codegen can't generate
-    // (codegen only knows about version.proto at the top level)
-    let mod_rs = proto_base.join("mod.rs");
-    let mut mod_file = File::create(&mod_rs).unwrap();
-    write!(
-        mod_file,
-        "#![allow(missing_docs, unused_qualifications)]\n\
-         #[cfg(feature = \"dss\")]\n\
-         pub mod dss;\n\
-         pub mod version;\n\
-         pub mod wrapped;\n"
-    );
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR is not set");
+    let out_dir = Path::new(&out_dir);
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is not set");
+    let manifest_dir = Path::new(&manifest_dir);
+
+    generate_gf256_tables(out_dir);
+    generate_protobuf_modules(out_dir);
+    write_protobuf_module_descriptors(out_dir, manifest_dir);
 }

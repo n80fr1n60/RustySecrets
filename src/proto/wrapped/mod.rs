@@ -1,4 +1,2 @@
 #![allow(missing_docs)]
-pub mod secret;
-pub mod share;
-pub use crate::proto::version;
+include!(concat!(env!("OUT_DIR"), "/proto_wrapped_mod.rs"));
