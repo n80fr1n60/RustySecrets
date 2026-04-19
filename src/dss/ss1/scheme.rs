@@ -258,6 +258,9 @@ impl SS1 {
 
         let underlying = ThSS::default();
         let (mut secret, _, metadata) = underlying.recover_secret(&underlying_shares)?;
+        if secret.len() <= self.random_padding_len {
+            return Err(Error::SecretDeserializationError);
+        }
         let secret_len = secret.len() - self.random_padding_len;
         let random_padding = secret.split_off(secret_len);
         // `secret` nows holds the secret

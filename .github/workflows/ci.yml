@@ -14,15 +14,17 @@ env:
 
 jobs:
   build-and-test:
-    name: Build & Test
+    name: Build & Test (${{ matrix.toolchain }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: [stable, beta]
+      fail-fast: false
     steps:
-      # Verify SHAs at:
-      # https://github.com/actions/checkout/tags
-      # https://github.com/dtolnay/rust-toolchain/commits/stable
-      # https://github.com/Swatinem/rust-cache/tags
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
       - name: Build (default features)
@@ -34,8 +36,23 @@ jobs:
       - name: Test (all features)
         run: cargo test --verbose --all-features
 
-      - name: Build benches (all features)
-        run: cargo bench --verbose --all-features --no-run
+      - name: Doc (all features)
+        run: cargo doc --verbose --all-features --no-deps
+
+  nightly:
+    name: Build & Test (nightly)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Build (all features)
+        run: cargo build --verbose --all-features
+
+      - name: Test (all features)
+        run: cargo test --verbose --all-features
 
   clippy:
     name: Clippy
@@ -47,7 +64,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
-      - name: Clippy (all targets, all features)
+      - name: Clippy (all features)
         run: cargo clippy --all-features --all-targets -- -D warnings -A clippy::result_large_err -A clippy::doc_markdown
 
   fmt:
