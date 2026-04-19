@@ -57,9 +57,10 @@ fn ss1_share_strings_roundtrip_with_metadata() {
 #[test]
 fn thss_share_strings_roundtrip_with_metadata() {
     let mut metadata = thss::MetaData::new();
-    metadata
-        .tags
-        .insert("mime_type".to_string(), "application/octet-stream".to_string());
+    metadata.tags.insert(
+        "mime_type".to_string(),
+        "application/octet-stream".to_string(),
+    );
     metadata
         .tags
         .insert("label".to_string(), "integration-test".to_string());
