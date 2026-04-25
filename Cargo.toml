@@ -24,7 +24,7 @@ dss = ["rand_chacha"]
 [dependencies]
 base64 = "0.22"
 rand = "0.9"
-rand_chacha = { version = "0.9", optional = true }
+rand_chacha = { version = "0.10", optional = true }
 ring = "0.17"
 merkle_sigs = { git = "https://github.com/n80fr1n60/merkle_sigs.rs", branch = "master" }
 protobuf = "3.7"
@@ -39,7 +39,7 @@ itertools = "0.14"
 quickcheck = "1.1"
 flate2 = "1.1"
 rand = "0.9"
-rand_chacha = "0.9"
+rand_chacha = "0.10"
 
 [[bench]]
 name = "sss"
