@@ -420,7 +420,7 @@ dependencies = [
 [[package]]
 name = "lamport_sigs"
 version = "0.7.1-pre"
-source = "git+https://github.com/n80fr1n60/lamport_sigs.rs?branch=master#698393891b895a22b1dd5a8fd2f2aa55d56d5408"
+source = "git+https://github.com/n80fr1n60/lamport_sigs.rs?branch=master#a3d81a4a36d9daf2034bb1695d90b7824eca165b"
 dependencies = [
  "ring",
 ]
@@ -464,7 +464,7 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 [[package]]
 name = "merkle"
 version = "1.11.1-pre"
-source = "git+https://github.com/n80fr1n60/merkle.rs?branch=master#6329a9272d9becc14a046f9c784a0dfbda0b926a"
+source = "git+https://github.com/n80fr1n60/merkle.rs?branch=master#c6fd43ce6f867c579f8a55577596eca5f4b93a41"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
@@ -474,7 +474,7 @@ dependencies = [
 [[package]]
 name = "merkle_sigs"
 version = "1.7.1-pre"
-source = "git+https://github.com/n80fr1n60/merkle_sigs.rs?branch=master#02ad34ef89f3af0c176eef80a9e74f6daa66ea12"
+source = "git+https://github.com/n80fr1n60/merkle_sigs.rs?branch=master#2b71edf035a3b14d19c588dbd8ce936b80b68005"
 dependencies = [
  "lamport_sigs",
  "merkle",
@@ -907,7 +907,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
